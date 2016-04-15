@@ -14,18 +14,14 @@
 
     <hr></hr>
 
-    <div class="row" ng-repeat="team in missionDashboardCtrl.getActiveOrInAirTeams()">
-      <div class="panel {{missionDashboardCtrl.getTeamColorClass(team)}}">
-        <h4>{{team.id}}: {{team.name}}</h4>
-        <h6>Active: {{team.active}}</h6>
-        <h6>In Air: {{team.in_air}}</h6>
-      </div>
+    <div class="row" ng-repeat="team in missionDashboardCtrl.getTeamsToDisplay()">
+        <team-status team="team"></team-status>
     </div>
   </div>
 
   <div class="small-9 columns">
     <div class="row mission-dashboard-mission-view">
-      <mission-map-view offset-width="0" offset-height="95" mission-scene="missionDashboardCtrl.missionScene"></mission-map-view>
+      <mission-map offset-width="0" offset-height="95" mission-scene="missionDashboardCtrl.missionScene"></mission-map>
     </div>
   </div>
 

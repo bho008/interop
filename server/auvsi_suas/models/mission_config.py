@@ -2,10 +2,16 @@
 
 import itertools
 import logging
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.db import models
+
 from auvsi_suas.patches.simplekml_patch import Color
 from auvsi_suas.patches.simplekml_patch import AltitudeMode
+from auvsi_suas.models import units
 from fly_zone import FlyZone
 from gps_position import GpsPosition
+from mission_clock_event import MissionClockEvent
 from moving_obstacle import MovingObstacle
 from obstacle_access_log import ObstacleAccessLog
 from server_info import ServerInfo
@@ -15,9 +21,6 @@ from takeoff_or_landing_event import TakeoffOrLandingEvent
 from time_period import TimePeriod
 from uas_telemetry import UasTelemetry
 from waypoint import Waypoint
-from django.conf import settings
-from django.contrib.auth.models import User
-from django.db import models
 
 # Logging for the module
 logger = logging.getLogger(__name__)
@@ -128,6 +131,7 @@ class MissionConfig(models.Model):
             A map from user to evaluate data. The evaluation data has the
             following map structure:
             {
+                'mission_clock_time': Seconds spent on mission clock,
                 'waypoints_satisfied': {
                     id: Boolean,
                 }
@@ -143,6 +147,9 @@ class MissionConfig(models.Model):
                 'moving_obst_collision': {
                     id: Boolean
                 }
+                'warnings': [
+                    "String message."
+                ],
             }
         """
         # Start a results map from user to evaluation data
@@ -161,14 +168,32 @@ class MissionConfig(models.Model):
 
             # Start the evaluation data structure.
             eval_data = results.setdefault(user, {})
+            warnings = []
+            eval_data['warnings'] = warnings
+
+            # Calculate the total mission clock time.
+            mission_clock_time = 0
+            missions = MissionClockEvent.missions(user)
+            for mission in missions:
+                duration = mission.duration()
+                if duration is None:
+                    warnings.append('Infinite duration mission clock.')
+                else:
+                    mission_clock_time += duration.total_seconds()
+            eval_data['mission_clock_time'] = mission_clock_time
 
             # Find the user's flights.
             flight_periods = TakeoffOrLandingEvent.flights(user)
+            for period in flight_periods:
+                if period.duration() is None:
+                    warnings.append('Infinite duration flight period.')
             uas_period_logs = [
                 UasTelemetry.dedupe(logs)
                 for logs in UasTelemetry.by_time_period(user, flight_periods)
             ]
             uas_logs = list(itertools.chain.from_iterable(uas_period_logs))
+            if not uas_logs:
+                warnings.append('No UAS telemetry logs.')
 
             # Determine if the uas hit the waypoints.
             waypoints_hit = self.satisfied_waypoints(uas_logs)
@@ -349,7 +374,7 @@ class MissionConfig(models.Model):
         for waypoint in self.mission_waypoints.all():
             gps = waypoint.position.gps_position
             coord = (gps.longitude, gps.latitude,
-                     waypoint.position.altitude_msl)
+                     units.feet_to_meters(waypoint.position.altitude_msl))
             waypoints.append(coord)
 
             # Add waypoint marker
@@ -375,7 +400,8 @@ class MissionConfig(models.Model):
         search_area_num = 1
         for point in self.search_grid_points.all():
             gps = point.position.gps_position
-            coord = (gps.longitude, gps.latitude, point.position.altitude_msl)
+            coord = (gps.longitude, gps.latitude,
+                     units.feet_to_meters(point.position.altitude_msl))
             search_area.append(coord)
 
             # Add boundary marker
