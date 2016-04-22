@@ -1,0 +1,5 @@
+python setup.py install
+
+pip install futures
+pip install requests
+pip install python-dateutil
