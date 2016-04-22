@@ -7,7 +7,7 @@ from time import time
 __author__ = 'Joseph Moster'
 
 server = xmlrpclib.ServerProxy('http://127.0.0.1:9000')
-print 'Server Info: {}'.format(server.server_info())
+#print Server Info: {}'.format(server.server_info())
 
 
 def timing(rate):
@@ -32,7 +32,7 @@ while True:
         #print 'getting obstacles'
         async_radii_stationary, async_lat_stationary, async_lng_stationary, async_radii_moving, async_lat_moving, async_lng_moving = server.get_obstacles()
         
-        #print(async_lat_stationary, ' ',  async_lng_stationary, ' ', async_radii_stationary, ' ', async_lat_moving, ' ', async_lng_moving, ' ', async_radii_moving)
+        print(async_lat_stationary, ' ',  async_lng_stationary, ' ', async_radii_stationary, ' ', async_lat_moving, ' ', async_lng_moving, ' ', async_radii_moving)
         Script.UpdateObstacles(async_radii_stationary, async_lat_stationary, async_lng_stationary, async_radii_moving, async_lat_moving, async_lng_moving)
         #print 'telem posted'
         #print 'Server Info: {}'.format(server.server_info())
