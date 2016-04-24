@@ -57,7 +57,7 @@ class RelayService:
 
     def server_info(self):
         info = self.client.get_server_info().result()
-        return str(info.message)
+        return str(info.message), str(info.message_timestamp), str(info.server_time)
 
 
 if __name__ == '__main__':
