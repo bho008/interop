@@ -43,12 +43,13 @@ class RelayService:
         async_radii_stationary = [o.cylinder_radius for o in async_stationary]
         async_lat_stationary = [o.latitude for o in async_stationary]
         async_lng_stationary = [o.longitude for o in async_stationary]
+        async_height_stationary = [o.cylinder_height for o in async_stationary]
         async_radii_moving = [o.sphere_radius for o in async_moving]
         async_lat_moving = [o.latitude for o in async_moving]
         async_lng_moving = [o.longitude for o in async_moving]
+        async_height_moving = [o.altitude_msl for o in async_moving]
         
-        
-        return async_radii_stationary, async_lat_stationary, async_lng_stationary, async_radii_moving, async_lat_moving, async_lng_moving
+        return async_radii_stationary, async_lat_stationary, async_lng_stationary, async_height_stationary, async_radii_moving, async_lat_moving, async_lng_moving, async_height_moving
 	
 	def get_moving_obstacles(self):
 	

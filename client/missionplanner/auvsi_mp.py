@@ -30,10 +30,10 @@ while True:
             float(cs.lat), float(cs.lng), float(cs.alt),
             float(cs.groundcourse))
         #print 'getting obstacles'
-        async_radii_stationary, async_lat_stationary, async_lng_stationary, async_radii_moving, async_lat_moving, async_lng_moving = server.get_obstacles()
+        async_radii_stationary, async_lat_stationary, async_lng_stationary, async_height_stationary, async_radii_moving, async_lat_moving, async_lng_moving, async_height_moving = server.get_obstacles()
         
-        print(async_lat_stationary, ' ',  async_lng_stationary, ' ', async_radii_stationary, ' ', async_lat_moving, ' ', async_lng_moving, ' ', async_radii_moving)
-        Script.UpdateObstacles(async_radii_stationary, async_lat_stationary, async_lng_stationary, async_radii_moving, async_lat_moving, async_lng_moving)
+        #print(async_lat_stationary, ' ',  async_lng_stationary, ' ', async_radii_stationary, ' ', async_lat_moving, ' ', async_lng_moving, ' ', async_radii_moving)
+        Script.UpdateObstacles(async_radii_stationary, async_lat_stationary, async_lng_stationary, async_height_stationary, async_radii_moving, async_lat_moving, async_lng_moving, async_height_moving)
         #print 'telem posted'
-        #print 'Server Info: {}'.format(server.server_info())
+        print 'Server Info: {}'.format(server.server_info())
 
