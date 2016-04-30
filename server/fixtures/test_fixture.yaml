@@ -39,7 +39,7 @@
   fields: {cylinder_height: 300.0, cylinder_radius: 50.0, gps_position: 2}
 - model: auvsi_suas.stationaryobstacle
   pk: 3
-  fields: {cylinder_height: 400.0, cylinder_radius: 200.0, gps_position: 6}
+  fields: {cylinder_height: 400.0, cylinder_radius: 100.0, gps_position: 6}
 - model: auvsi_suas.movingobstacle
   pk: 1
   fields:
@@ -81,7 +81,7 @@
   fields: {latitude: 38.144678, longitude: -76.427995}
 - model: auvsi_suas.gpsposition
   pk: 6
-  fields: {latitude: 33.778099, longitude: -117.193504}
+  fields: {latitude: 33.778180, longitude: -117.192872}
 - model: auvsi_suas.missionconfig
   pk: 1
   fields:
