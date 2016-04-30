@@ -118,11 +118,6 @@ class TestObstaclesViewCommon(TestCase):
                                                lon=-76.834082,
                                                radius=100,
                                                height=750)
-
-        obst = self.create_stationary_obstacle(lat=33.778099,
-                                               lon=-117.193504,
-                                               radius=300,
-                                               height=750)									   
         config.stationary_obstacles.add(obst)
 
         # And a couple of moving obstacles
