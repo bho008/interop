@@ -46,6 +46,12 @@
     speed_avg: 30.0
     sphere_radius: 50.0
     waypoints: [1, 2, 3]
+- model: auvsi_suas.movingobstacle
+  pk: 2
+  fields:
+    speed_avg: 30.0
+    sphere_radius: 50.0
+    waypoints: [4, 5, 6]
 - model: auvsi_suas.waypoint
   pk: 1
   fields: {order: 1, position: 1}
@@ -55,6 +61,15 @@
 - model: auvsi_suas.waypoint
   pk: 3
   fields: {order: 3, position: 3}
+- model: auvsi_suas.waypoint
+  pk: 4
+  fields: {order: 4, position: 4}
+- model: auvsi_suas.waypoint
+  pk: 5
+  fields: {order: 5, position: 5}
+- model: auvsi_suas.waypoint
+  pk: 6
+  fields: {order: 6, position: 6}
 - model: auvsi_suas.aerialposition
   pk: 1
   fields: {altitude_msl: 200.0, gps_position: 3}
@@ -64,6 +79,15 @@
 - model: auvsi_suas.aerialposition
   pk: 3
   fields: {altitude_msl: 100.0, gps_position: 5}
+- model: auvsi_suas.aerialposition
+  pk: 4
+  fields: {altitude_msl: 200.0, gps_position: 7}
+- model: auvsi_suas.aerialposition
+  pk: 5
+  fields: {altitude_msl: 300.0, gps_position: 8}
+- model: auvsi_suas.aerialposition
+  pk: 6
+  fields: {altitude_msl: 100.0, gps_position: 9}
 - model: auvsi_suas.gpsposition
   pk: 1
   fields: {latitude: 38.14792, longitude: -76.427995}
@@ -82,6 +106,16 @@
 - model: auvsi_suas.gpsposition
   pk: 6
   fields: {latitude: 33.778180, longitude: -117.192872}
+- model: auvsi_suas.gpsposition
+  pk: 7
+  fields: {latitude: 33.779321, longitude: -117.193889} 
+- model: auvsi_suas.gpsposition
+  pk: 8
+  fields: {latitude: 33.779583, longitude: -117.193167}
+- model: auvsi_suas.gpsposition
+  pk: 9
+  fields: {latitude: 33.779335, longitude: -117.192337}
+  
 - model: auvsi_suas.missionconfig
   pk: 1
   fields:
@@ -95,4 +129,4 @@
     server_info: 1
     sric_pos: 4
     stationary_obstacles: [1, 2, 3]
-    moving_obstacles: [1]
+    moving_obstacles: [1, 2]
