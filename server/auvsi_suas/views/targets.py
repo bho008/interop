@@ -123,7 +123,8 @@ class Targets(View):
         # but for now 100 targets ought to be enough for anyone.
         targets = Target.objects.filter(user=request.user).all()[:100]
 
-        targets = [t.json() for t in targets]
+        targets = [t.json(is_superuser=request.user.is_superuser)
+                   for t in targets]
 
         # Older versions of JS allow hijacking the Array constructor to steal
         # JSON data. It is not a problem in recent versions.
@@ -172,7 +173,9 @@ class Targets(View):
                    autonomous=data.get('autonomous', False))
         t.save()
 
-        return JsonResponse(t.json(), status=201)
+        return JsonResponse(
+            t.json(is_superuser=request.user.is_superuser),
+            status=201)
 
 
 def find_target(request, pk):
@@ -190,11 +193,11 @@ def find_target(request, pk):
     """
     target = Target.objects.get(pk=pk)
 
-    # We only let users get their own targets
-    if target.user != request.user:
+    # We only let users get their own targets, unless a superuser.
+    if target.user == request.user or request.user.is_superuser:
+        return target
+    else:
         raise ValueError("Accessing target %d not allowed" % pk)
-
-    return target
 
 
 class TargetsId(View):
@@ -212,7 +215,8 @@ class TargetsId(View):
         except ValueError as e:
             return HttpResponseForbidden(str(e))
 
-        return JsonResponse(target.json())
+        return JsonResponse(target.json(is_superuser=
+                                        request.user.is_superuser))
 
     def put(self, request, pk):
         try:
@@ -301,7 +305,8 @@ class TargetsId(View):
 
         target.save()
 
-        return JsonResponse(target.json())
+        return JsonResponse(target.json(is_superuser=
+                                        request.user.is_superuser))
 
     def delete(self, request, pk):
         try:
@@ -312,22 +317,17 @@ class TargetsId(View):
             return HttpResponseForbidden(str(e))
 
         # Remember the thumbnail path so we can delete it from disk.
-        thumbnail = target.thumbnail.name
+        thumbnail = target.thumbnail.path if target.thumbnail else None
 
         target.delete()
 
         if thumbnail:
             try:
-                os.remove(absolute_media_path(thumbnail))
+                os.remove(thumbnail)
             except OSError as e:
                 logger.warning("Unable to delete thumbnail: %s", e)
 
         return HttpResponse("Target deleted.")
-
-
-def absolute_media_path(media_path):
-    """Compute absolute path in MEDIA_ROOT, from relative."""
-    return os.path.join(settings.MEDIA_ROOT, media_path)
 
 
 class TargetsIdImage(View):
@@ -349,7 +349,7 @@ class TargetsIdImage(View):
             return HttpResponseNotFound('Target %s has no image' % pk)
 
         # Tell Apache to serve the thumbnail.
-        return sendfile(request, absolute_media_path(target.thumbnail.name))
+        return sendfile(request, target.thumbnail.path)
 
     def post(self, request, pk):
         try:
@@ -374,15 +374,15 @@ class TargetsIdImage(View):
                 'Invalid image format %s, only JPEG and PNG allowed' %
                 i.format)
 
-        old_thumbnail = target.thumbnail.name
+        old_path = target.thumbnail.path if target.thumbnail else None
 
         target.thumbnail.save('%d.%s' % (target.pk, i.format), ImageFile(f))
 
-        if target.thumbnail.name != old_thumbnail:
+        if old_path and target.thumbnail.path != old_path:
             # We didn't overwrite the old thumbnail, we should delete it,
             # but ignore deletion errors.
             try:
-                os.remove(absolute_media_path(old_thumbnail))
+                os.remove(old_path)
             except OSError as e:
                 logger.warning("Unable to delete old thumbnail: %s", e)
 
@@ -400,17 +400,16 @@ class TargetsIdImage(View):
         except ValueError as e:
             return HttpResponseForbidden(str(e))
 
-        name = target.thumbnail.name
-
-        if not name:
+        if not target.thumbnail or not target.thumbnail.path:
             return HttpResponseNotFound('Target %s has no image' % pk)
 
+        path = target.thumbnail.path
         # Remove the thumbnail from the target.
         # Note that this does not delete it from disk!
         target.thumbnail.delete()
 
         try:
-            os.remove(absolute_media_path(name))
+            os.remove(path)
         except OSError as e:
             logger.warning("Unable to delete thumbnail: %s", e)
 
