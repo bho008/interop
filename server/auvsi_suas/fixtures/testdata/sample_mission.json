@@ -50,15 +50,15 @@
 {
     "fields": {
         "latitude": 38.0,
-        "longitude": -76.0
+        "longitude": -77.0
     },
     "model": "auvsi_suas.gpsposition",
     "pk": 323
 },
 {
     "fields": {
-        "latitude": 10.0,
-        "longitude": 100.0
+        "latitude": 38.0,
+        "longitude": -79.0
     },
     "model": "auvsi_suas.gpsposition",
     "pk": 324
@@ -106,7 +106,7 @@
 {
     "fields": {
         "latitude": 38.0,
-        "longitude": -76.0
+        "longitude": -77.0
     },
     "model": "auvsi_suas.gpsposition",
     "pk": 330
