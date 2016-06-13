@@ -29,4 +29,4 @@ while True:
         server.telemetry(
             float(cs.lat), float(cs.lng), float(cs.alt),
             float(cs.groundcourse))
-    print 'Server Info: {}'.format(server.server_info())
+        print 'Server Info: {}'.format(server.server_info())
