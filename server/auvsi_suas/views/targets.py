@@ -430,15 +430,21 @@ class TargetsAdminReview(View):
             if (MissionClockEvent.user_on_clock(user) or
                     MissionClockEvent.user_on_timeout(user)):
                 continue
-            targets.extend([t.json(is_superuser=request.user.is_superuser)
-                            for t in Target.objects.filter(user=user).all()])
+            # Get targets which have thumbnail.
+            targets.extend([t
+                            for t in Target.objects.filter(user=user).all()
+                            if t.thumbnail])
+        # Sort targets by last edit time, convert to json.
+        targets = [t.json(is_superuser=request.user.is_superuser)
+                   for t in sorted(targets,
+                                   key=lambda t: t.last_modified_time)]
         return JsonResponse(targets, safe=False)
 
     def put(self, request, pk):
         """Updates the review status of a target."""
         try:
             data = json.loads(request.body)
-            approved = bool(data['approved'])
+            approved = bool(data['thumbnail_approved'])
         except KeyError:
             return HttpResponseBadRequest('Failed to get required field.')
         except ValueError:

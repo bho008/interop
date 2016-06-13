@@ -12,13 +12,6 @@ from auvsi_suas.patches.simplekml_patch import Kml
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-# [waypoints, uas_logs, satisfied_list]
-TESTDATA_MISSIONCONFIG_EVALWAYPOINTS = (
-    [(38, -76, 100), (39, -77, 200), (37, -75, 0)],
-    [(38, -76, 140), (40, -78, 600), (37, -75, 40)],
-    [True, False, True]
-)  # yapf: disable
-
 
 class TestMissionConfigModel(TestCase):
     """Tests the MissionConfig model."""
@@ -57,11 +50,38 @@ class TestMissionConfigModel(TestCase):
         config.save()
         self.assertTrue(config.__unicode__())
 
+    def create_uas_logs(self, user, entries):
+        """Create a list of uas telemetry logs.
+
+        Args:
+            user: User to create logs for.
+            entries: List of (lat, lon, alt) tuples for each entry.
+
+        Returns:
+            List of UasTelemetry objects
+        """
+        ret = []
+
+        for (lat, lon, alt) in entries:
+            pos = GpsPosition()
+            pos.latitude = lat
+            pos.longitude = lon
+            pos.save()
+            apos = AerialPosition()
+            apos.altitude_msl = alt
+            apos.gps_position = pos
+            apos.save()
+            log = UasTelemetry()
+            log.user = user
+            log.uas_position = apos
+            log.uas_heading = 0
+            log.save()
+            ret.append(log)
+
+        return ret
+
     def test_satisfied_waypoints(self):
         """Tests the evaluation of waypoints method."""
-        data = TESTDATA_MISSIONCONFIG_EVALWAYPOINTS
-        (waypoint_details, uas_log_details, exp_satisfied) = data
-
         # Create mission config
         gpos = GpsPosition()
         gpos.latitude = 10
@@ -77,8 +97,9 @@ class TestMissionConfigModel(TestCase):
         config.save()
 
         # Create waypoints for config
-        for wpt_id in xrange(len(waypoint_details)):
-            (lat, lon, alt) = waypoint_details[wpt_id]
+        waypoints = [(38, -76, 100), (39, -77, 200), (40, -78, 0)]
+        for i, waypoint in enumerate(waypoints):
+            (lat, lon, alt) = waypoint
             pos = GpsPosition()
             pos.latitude = lat
             pos.longitude = lon
@@ -89,34 +110,76 @@ class TestMissionConfigModel(TestCase):
             apos.save()
             wpt = Waypoint()
             wpt.position = apos
-            wpt.order = wpt_id
+            wpt.order = i
             wpt.save()
             config.mission_waypoints.add(wpt)
         config.save()
 
         # Create UAS telemetry logs
-        uas_logs = []
         user = User.objects.create_user('testuser', 'testemail@x.com',
                                         'testpass')
-        for (lat, lon, alt) in uas_log_details:
-            pos = GpsPosition()
-            pos.latitude = lat
-            pos.longitude = lon
-            pos.save()
-            apos = AerialPosition()
-            apos.altitude_msl = alt
-            apos.gps_position = pos
-            apos.save()
-            log = UasTelemetry()
-            log.user = user
-            log.uas_position = apos
-            log.uas_heading = 0
-            log.save()
-            uas_logs.append(log)
 
-        # Assert correct satisfied waypoints
-        wpts_satisfied = config.satisfied_waypoints(uas_logs)
-        self.assertEqual(wpts_satisfied, exp_satisfied)
+        # Only first is valid.
+        entries = [(38, -76, 140), (40, -78, 600), (37, -75, 40)]
+        expect = (1, 1)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
+
+        # First and last are valid, but missed second, so third doesn't count.
+        entries = [(38, -76, 140), (40, -78, 600), (40, -78, 40)]
+        expect = (1, 1)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
+
+        # Hit all.
+        entries = [(38, -76, 140), (39, -77, 180), (40, -78, 40)]
+        expect = (3, 3)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
+
+        # Hit all, but don't stay within waypoint track.
+        entries = [(38, -76, 140), (39, -77, 180), (41, -78, 40),
+                   (40, -78, 40)]
+        expect = (3, 2)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
+
+        # Only hit the first waypoint on run one, hit all on run two.
+        entries = [(38, -76, 140),
+                   (40, -78, 600),
+                   (37, -75, 40),
+                   # Run two:
+                   (38, -76, 140),
+                   (39, -77, 180),
+                   (40, -78, 40)]
+        expect = (3, 3)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
+
+        # Hit all on run one, only hit the first waypoint on run two.
+        entries = [(38, -76, 140),
+                   (39, -77, 180),
+                   (40, -78, 40),
+                   # Run two:
+                   (38, -76, 140),
+                   (40, -78, 600),
+                   (37, -75, 40)]
+        expect = (3, 3)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
+
+        # Remain on the waypoint track only on the second run.
+        entries = [(38, -76, 140),
+                   (39, -77, 180),
+                   (41, -78, 40),
+                   (40, -78, 40),
+                   # Run two:
+                   (38, -76, 140),
+                   (39, -77, 180),
+                   (40, -78, 40)]
+        expect = (3, 3)
+        logs = self.create_uas_logs(user, entries)
+        self.assertEqual(expect, config.satisfied_waypoints(logs))
 
 
 class TestMissionConfigModelSampleMission(TestCase):
@@ -137,8 +200,7 @@ class TestMissionConfigModelSampleMission(TestCase):
         # Verify dictionary structure
         for user, val in teams.iteritems():
             self.assertIn('waypoints_satisfied', val)
-            self.assertIn(1, val['waypoints_satisfied'])
-            self.assertIn(2, val['waypoints_satisfied'])
+            self.assertIn('waypoints_satisfied_track', val)
 
             self.assertIn('mission_clock_time', val)
             self.assertIn('out_of_bounds_time', val)
@@ -171,8 +233,8 @@ class TestMissionConfigModelSampleMission(TestCase):
             self.assertIn(26, val['moving_obst_collision'])
 
         # user0 data
-        self.assertEqual(True, teams[user0]['waypoints_satisfied'][1])
-        self.assertEqual(True, teams[user0]['waypoints_satisfied'][2])
+        self.assertEqual(1, teams[user0]['waypoints_satisfied'])
+        self.assertEqual(1, teams[user0]['waypoints_satisfied_track'])
 
         self.assertAlmostEqual(2, teams[user0]['mission_clock_time'])
         self.assertAlmostEqual(0.6, teams[user0]['out_of_bounds_time'])
@@ -211,8 +273,8 @@ class TestMissionConfigModelSampleMission(TestCase):
         self.assertEqual(False, teams[user0]['moving_obst_collision'][26])
 
         # user1 data
-        self.assertEqual(True, teams[user1]['waypoints_satisfied'][1])
-        self.assertEqual(True, teams[user1]['waypoints_satisfied'][2])
+        self.assertEqual(2, teams[user1]['waypoints_satisfied'])
+        self.assertEqual(1, teams[user0]['waypoints_satisfied_track'])
 
         self.assertAlmostEqual(18, teams[user1]['mission_clock_time'])
         self.assertAlmostEqual(1.0, teams[user1]['out_of_bounds_time'])
@@ -249,8 +311,8 @@ class TestMissionConfigModelSampleMission(TestCase):
         self.assertIn('home_pos', data)
         self.assertIn('latitude', data['home_pos'])
         self.assertIn('longitude', data['home_pos'])
-        self.assertEqual(10.0, data['home_pos']['latitude'])
-        self.assertEqual(100.0, data['home_pos']['longitude'])
+        self.assertEqual(38.0, data['home_pos']['latitude'])
+        self.assertEqual(-79.0, data['home_pos']['longitude'])
 
         self.assertIn('fly_zones', data)
         self.assertEqual(1, len(data['fly_zones']))
@@ -287,7 +349,7 @@ class TestMissionConfigModelSampleMission(TestCase):
 
         self.assertEqual(156, data['mission_waypoints'][1]['id'])
         self.assertEqual(38.0, data['mission_waypoints'][1]['latitude'])
-        self.assertEqual(-76.0, data['mission_waypoints'][1]['longitude'])
+        self.assertEqual(-77.0, data['mission_waypoints'][1]['longitude'])
         self.assertEqual(60.0, data['mission_waypoints'][1]['altitude_msl'])
         self.assertEqual(1, data['mission_waypoints'][1]['order'])
 
@@ -302,34 +364,34 @@ class TestMissionConfigModelSampleMission(TestCase):
         self.assertEqual(1, len(data['search_grid_points']))
 
         self.assertEqual(150, data['search_grid_points'][0]['id'])
-        self.assertEqual(10.0, data['search_grid_points'][0]['latitude'])
-        self.assertEqual(100.0, data['search_grid_points'][0]['longitude'])
+        self.assertEqual(38.0, data['search_grid_points'][0]['latitude'])
+        self.assertEqual(-79.0, data['search_grid_points'][0]['longitude'])
         self.assertEqual(1000.0, data['search_grid_points'][0]['altitude_msl'])
         self.assertEqual(10, data['search_grid_points'][0]['order'])
 
         self.assertIn('emergent_last_known_pos', data)
         self.assertIn('latitude', data['emergent_last_known_pos'])
         self.assertIn('longitude', data['emergent_last_known_pos'])
-        self.assertEqual(10.0, data['emergent_last_known_pos']['latitude'])
-        self.assertEqual(100.0, data['emergent_last_known_pos']['longitude'])
+        self.assertEqual(38.0, data['emergent_last_known_pos']['latitude'])
+        self.assertEqual(-79.0, data['emergent_last_known_pos']['longitude'])
 
         self.assertIn('off_axis_target_pos', data)
         self.assertIn('latitude', data['off_axis_target_pos'])
         self.assertIn('longitude', data['off_axis_target_pos'])
-        self.assertEqual(10.0, data['off_axis_target_pos']['latitude'])
-        self.assertEqual(100.0, data['off_axis_target_pos']['longitude'])
+        self.assertEqual(38.0, data['off_axis_target_pos']['latitude'])
+        self.assertEqual(-79.0, data['off_axis_target_pos']['longitude'])
 
         self.assertIn('sric_pos', data)
         self.assertIn('latitude', data['sric_pos'])
         self.assertIn('longitude', data['sric_pos'])
-        self.assertEqual(10.0, data['sric_pos']['latitude'])
-        self.assertEqual(100.0, data['sric_pos']['longitude'])
+        self.assertEqual(38.0, data['sric_pos']['latitude'])
+        self.assertEqual(-79.0, data['sric_pos']['longitude'])
 
         self.assertIn('air_drop_pos', data)
         self.assertIn('latitude', data['air_drop_pos'])
         self.assertIn('longitude', data['air_drop_pos'])
-        self.assertEqual(10.0, data['air_drop_pos']['latitude'])
-        self.assertEqual(100.0, data['air_drop_pos']['longitude'])
+        self.assertEqual(38.0, data['air_drop_pos']['latitude'])
+        self.assertEqual(-79.0, data['air_drop_pos']['longitude'])
 
         self.assertIn('stationary_obstacles', data)
         self.assertEqual(2, len(data['stationary_obstacles']))
